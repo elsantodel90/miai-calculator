@@ -511,9 +511,6 @@ void merge(ThermoGraph &ret, const ThermoLine &leftLine, const ThermoLine &right
     }
 }
 
-// Despues hay que cambiar esto por un Engine de Go, y pensar como seria un Ko... Pero mientras sirve para testing y debugging XD
-// Tambien habria que cachear las respuestas (termografos) de los hijos... [Definir el tipo termografo... que merge trabaje con uno XD]
-
 struct GameTree
 {
     vector<GameTree> left;
