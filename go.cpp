@@ -1,10 +1,10 @@
-#define BOOST_DYNAMIC_BITSET_DONT_USE_FRIENDS
-
 #include "combinatorios.h"
-#include "boost/boost_1_62_0/boost/dynamic_bitset.hpp"
-#include "boost/boost_1_62_0/boost/unordered_map.hpp"
+#include <bitset>
+#include <unordered_map>
 
-typedef boost::dynamic_bitset<unsigned long long> Bitset;
+const int MAX_AREA = 32;
+
+typedef bitset<2*MAX_AREA> Bitset;
 
 struct Board
 {
@@ -12,14 +12,12 @@ struct Board
     bool operator==(const Board &o) const { return bs == o.bs; }
 };
 
-std::size_t hash_value(const Board& b) {
-    return boost::hash_value(b.bs.m_bits);
-}
-
+// Board hash function
+namespace std { template <> struct hash<Board> { std::size_t operator()(const Board& b) const { return hash<Bitset>()(b.bs); } }; }
 
 // Cuestiones de la "transposition table".
 
-boost::unordered_map<Board, ThermoGraph > transpositionTable;
+unordered_map<Board, ThermoGraph > transpositionTable;
 
 const Number MINUS_ONE(-1);
 
@@ -50,13 +48,13 @@ bool pending(const ThermoGraph &t)
 int main()
 {
     Board b;
+    
     transpositionTable[b] = ThermoGraph();
-    int n; cin >> n;
-    Bitset bs(n);
+    Bitset bs;
     bs.set(3);
     bs.set(4);
     bs.set(5);
     bs.reset(4);
-    for (int i=0;i<n;i++) cout << bs.test(i) << endl;
+    for (int i=0;i<2*MAX_AREA;i++) cout << bs.test(i) << endl;
     return 0;
 }
