@@ -6,10 +6,30 @@ const int MAX_AREA = 32;
 
 typedef bitset<2*MAX_AREA> Bitset;
 
+// Indices de jugadores: 0 BLACK, 1 WHITE
+enum BoardIntersection {EMPTY = 0, KOBAN = 1, BLACK = 2, WHITE = 3}; 
+
+int boardN, boardM;
+int totalArea;
+
+typedef unsigned char Index;
+
+const Index OUTER_NULL = 255;
+const Index OUTER_BLACK = 254;
+const Index OUTER_WHITE = 253;
+
 struct Board
 {
     Bitset bs;
     bool operator==(const Board &o) const { return bs == o.bs; }
+    bool emptyCell(Index pos) const { return bs[1|(pos<<1)] == 0; }
+    bool emptyCellIsKobanned(Index pos) const { return bs[pos<<1] != 0; } // Asumiendo una celda vacia
+    int stoneColor(Index pos) const { return bs[pos<<1];}                 // Asumiendo una celda no vacia (con piedra)
+    BoardIntersection get(Index pos) const { return BoardIntersection((bs[1|(pos<<1)]<<1) | bs[pos<<1]); }
+    void set(Index pos, BoardIntersection value) {
+        bs[1|(pos<<1)] = (value >> 1);
+        bs[pos<<1]     = (value & 1);
+    }
 };
 
 // Board hash function
@@ -45,8 +65,33 @@ bool pending(const ThermoGraph &t)
 //                       de "No Result" que surge al elegir jugar el ciclo.
 //           Plan: Implementar la 1, la 2 ya veremos XD
 
+Index neighbors[MAX_AREA][4];
+
+void fillNeighbors()
+{
+    
+}
+
+void readBoard()
+{
+    cin >> boardN >> boardM;
+    assert(boardN >= 3);
+    assert(boardM >= 3);
+    boardN -= 2;
+    boardM -= 2;
+    totalArea = boardN * boardM;
+    assert(totalArea <= MAX_AREA);
+    fillNeighbors();
+}
+
 int main()
 {
+    assert(2*MAX_AREA <= OUTER_NULL);
+    assert(2*MAX_AREA <= OUTER_BLACK);
+    assert(2*MAX_AREA <= OUTER_WHITE);
+    
+    readBoard();
+    
     Board b;
     
     transpositionTable[b] = ThermoGraph();
