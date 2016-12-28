@@ -86,9 +86,11 @@ struct Section
     Number x;
     SectionType t;
     bool operator <(const Section &o) const { return x < o.x || (x == o.x && t < o.t); }
+    bool operator !=(const Section &o) const { return x != o.x || t != o.t; }
     bool negative() const {return x.negative() || (x.zero() && t == BELOW); }
     bool positive() const {return x.positive() || (x.zero() && t == ABOVE); }
     void negate() {t = SectionType(!t); x.negate();}
+    
 };
 
 Number simplicityRule(Section a, Section b)
@@ -153,6 +155,7 @@ struct ThermoLine
     bool startsUp;
     void turnLine() {startsUp ^= 1;}
     bool terminal() {return startsUp && v.empty();}
+    bool operator!=(const ThermoLine &o) const { return v != o.v || base != o.base || startsUp != o.startsUp;}
 };
 
 struct ThermoGraph
@@ -177,6 +180,7 @@ struct ThermoGraph
         }
         return mastVal;
     }
+    bool operator !=(const ThermoGraph &o) const { return left != o.left || right != o.right; }
 };
 
 ostream & operator<<(ostream &os, const ThermoGraph &t)
