@@ -1,4 +1,23 @@
-3 5
-XXXXX
-BB..W
-BWWWW
+4 7
+BWWWWWW
+BBB..WW
+BBB..WW
+BWWWWWW
+
+
+Un par de ceros (dan repeticiones)
+
+
+4 7
+XXXXXXX
+BW..WWW
+BWB.WWW
+BBWWWWW
+
+
+
+4 7
+XXXXXXX
+B.B.W.W
+BB.BBWW
+BBBWWWW

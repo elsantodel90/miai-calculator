@@ -34,6 +34,27 @@ struct Board
     }
 };
 
+ostream &operator<<(ostream &os, const Board &b)
+{
+    os << "/";
+    for (int j=0;j<boardM;j++)
+        os << "-";
+    os << "\\" << endl;
+    for (int i=0;i<boardN;i++)
+    {
+        os << "|";
+        for (int j=0;j<boardM;j++)
+            cout << ".KBW"[b.get(Index(i*boardM+j))];
+        os << "|";
+        os << endl;
+    }
+    os << "\\";
+    for (int j=0;j<boardM;j++)
+        os << "-";
+    os << "/" << endl;
+    return os;
+}
+
 // Board hash function
 namespace std { template <> struct hash<Board> { std::size_t operator()(const Board& b) const { return hash<Bitset>()(b.bs); } }; }
 
@@ -132,8 +153,8 @@ Board fillNeighbors()
 Board readBoard()
 {
     cin >> boardN >> boardM;
-    assert(boardN >= 3);
-    assert(boardM >= 3);
+    assert(boardN >= 4);
+    assert(boardM >= 4);
     boardN -= 2;
     boardM -= 2;
     totalArea = boardN * boardM;
@@ -141,9 +162,35 @@ Board readBoard()
     return fillNeighbors();
 }
 
-void checkMoves()
+
+
+
+
+
+//#define DEBUG_OPTIONS
+
+
+void thermograph(ThermoGraph &ret, Board board)
 {
-    Board board;
+    auto it = transpositionTable.find(board);
+    if (it != transpositionTable.end())
+    {
+        if (pending(it->second))
+            assert(false); // CICLO!!!
+        else
+            ret = it->second;
+        return;
+    }
+    makePending(transpositionTable[board]);
+    
+    #ifdef DEBUG_OPTIONS
+        Board origBoard = board; // Se modifica cuando se juega la opcion de tomar el koban.
+        vector<Board> options; // For debugging
+    #endif
+    
+    bool blackFirst = true, whiteFirst = true;
+    ThermoLine bestBlack, bestWhite;
+    
     
     // Recolectamos informacion de los grupos libertades etc...
     
@@ -216,6 +263,7 @@ void checkMoves()
                     break;
                 }
             }
+            kobanpos = OUTER_NULL;
         }
         else
             player = iter;
@@ -245,12 +293,12 @@ void checkMoves()
                         }
                     }
                 }
+                int stonesCaptured = (iter == 2); // Contamos la koban-capture
                 if (groupCaptures > 0)
                 {
                     // Ante capturas, copiamos y sabemos que la jugada es legal sin revisar si hubo suicidio.
                     Board newBoard = board;
                     // Realizar capturas
-                    int stonesCaptured = 0;
                     for (int j = 0; j < groupCaptures; j++)
                     {
                         stonesCaptured += groupEnd[captured[j]] - captured[j];
@@ -280,7 +328,52 @@ void checkMoves()
                     // Agregar un koban si es necesario
                     newBoard.set(i,BoardIntersection(2+player));
                     if (kobanpos != i && kobanpos != OUTER_NULL) newBoard.set(kobanpos, EMPTY);
-                    REPORT(newBoard);
+                    
+                    // REPORT(newBoard);
+                    if (player == 0) // BLACK
+                    {
+                        ThermoGraph otg;
+                        thermograph(otg, newBoard);
+                        otg.left.base.x  += Number(stonesCaptured * (1 - 2*player));
+                        otg.right.base.x += Number(stonesCaptured * (1 - 2*player));
+                        otg.right.startsUp ^= 1;
+                        if (blackFirst)
+                        {
+                            bestBlack = otg.right;
+                            blackFirst = false;
+                        }
+                        else
+                        {
+                            ThermoLine aux;
+                            takeMax(aux, bestBlack, otg.right);
+                            bestBlack = aux;
+                        }
+                    }
+                    else // WHITE
+                    {
+                        ThermoGraph otg;
+                        thermograph(otg, newBoard);
+                        otg.left.base.x  += Number(stonesCaptured * (1 - 2*player));
+                        otg.right.base.x += Number(stonesCaptured * (1 - 2*player));
+                        otg.left.startsUp ^= 1;
+                        if (whiteFirst)
+                        {
+                            bestWhite = otg.left;
+                            whiteFirst = false;
+                        }
+                        else
+                        {
+                            ThermoLine aux;
+                            takeMin(aux, bestWhite, otg.left);
+                            bestWhite = aux;
+                        }
+                    }
+                    
+                    #ifdef DEBUG_OPTIONS
+                        options.push_back(newBoard);
+                    #endif
+                    
+                    
                 }
                 else
                 {
@@ -293,20 +386,88 @@ void checkMoves()
                             if (board.emptyCell(y) || (board.stoneColor(y) == player && groupLiberties[groupId[y]] >= 2))
                                 goto noSuicide;
                         }
+                        else if (y == OUTER_BLACK + player)
+                            goto noSuicide;
                     }
                     continue; // Jugada suicida, no se procesa
                 noSuicide:;
                     // Estamos ante la jugada tipica: no captura nada y no es suicidio.
                     board.set(i,BoardIntersection(2+player));
                     if (kobanpos != i && kobanpos != OUTER_NULL) board.set(kobanpos, EMPTY);
-                    REPORT_MOVE(board);
+                    
+                    // REPORT(board);
+                    if (player == 0) // BLACK
+                    {
+                        ThermoGraph otg;
+                        thermograph(otg, board);
+                        otg.left.base.x  += Number(stonesCaptured * (1 - 2*player));
+                        otg.right.base.x += Number(stonesCaptured * (1 - 2*player));
+                        otg.right.startsUp ^= 1;
+                        if (blackFirst)
+                        {
+                            bestBlack = otg.right;
+                            blackFirst = false;
+                        }
+                        else
+                        {
+                            ThermoLine aux;
+                            takeMax(aux, bestBlack, otg.right);
+                            bestBlack = aux;
+                        }
+                    }
+                    else // WHITE
+                    {
+                        ThermoGraph otg;
+                        thermograph(otg, board);
+                        otg.left.base.x  += Number(stonesCaptured * (1 - 2*player));
+                        otg.right.base.x += Number(stonesCaptured * (1 - 2*player));
+                        otg.left.startsUp ^= 1;
+                        if (whiteFirst)
+                        {
+                            bestWhite = otg.left;
+                            whiteFirst = false;
+                        }
+                        else
+                        {
+                            ThermoLine aux;
+                            takeMin(aux, bestWhite, otg.left);
+                            bestWhite = aux;
+                        }
+                    }
+                    
+                    #ifdef DEBUG_OPTIONS
+                        options.push_back(board);
+                    #endif
+                    
                     if (kobanpos != i && kobanpos != OUTER_NULL) board.set(kobanpos, KOBAN);
                     board.set(i,val);
                 }
             }
         }
     }
+    
+    
+
+    
+    if (blackFirst && whiteFirst)
+        ret = ZERO_THERMOGRAPH;
+    else if (blackFirst)
+        mergeOnlyRight(ret, bestWhite);
+    else if (whiteFirst)
+        mergeOnlyLeft(ret, bestBlack);
+    else
+        merge(ret, bestBlack, bestWhite);
+    transpositionTable[board] = ret;
+    
+    #ifdef DEBUG_OPTIONS
+        cout << "BOARD:" << endl;
+        cout << origBoard;
+        cout << "OPTIONS:" << endl;
+        for (Board b : options) cout << b;
+        cout << "RESULT: " << ret << endl;
+    #endif
 }
+
 
 int main()
 {
@@ -316,7 +477,24 @@ int main()
     assert(MAX_AREA <= OUTER_WHITE);
     
     Board startingBoard = readBoard();
-    koMonster = 0;
+    ThermoGraph t[2];
+    for (koMonster = 0; koMonster < 2; koMonster++)
+    {
+        transpositionTable.clear();
+        thermograph(t[koMonster], startingBoard);
+    }
+    
+    if (t[0] != t[1])
+    {
+        cout << "LA POSICION DEPENDE DEL KO-MONSTER:" << endl;
+        cout << "BLACK:" << t[0] << endl;
+        cout << "WHITE:" << t[1] << endl;
+    }
+    else
+        cout << t[0] << endl;
+    
+    
+    return 0;
     
     Board b;
     
