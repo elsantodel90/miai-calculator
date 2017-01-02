@@ -1,18 +1,18 @@
-4 7
-BWWWWWW
-BBB..WW
-BBB..WW
-BWWWWWW
+8 5
+XXXXX
+BW.WB
+BBWWB
+BW.WB
+BBWWB
+BW.WB
+BBWWB
+BBBBB
 
 
-Un par de ceros (dan repeticiones)
 
 
-4 7
-XXXXXXX
-BW..WWW
-BWB.WWW
-BBWWWWW
+
+
 
 
 
@@ -21,3 +21,39 @@ XXXXXXX
 B.B.W.W
 BB.BBWW
 BBBWWWW
+Da 2(0)
+
+
+4 7
+XXXXXXX
+BW..WWW
+BWB.WWW
+BBWWWWW
+Da 4(0)
+
+
+4 7
+BWWWWWW
+BBB..WW
+BBB..WW
+BWWWWWW
+Da -1/2(1/2)
+
+
+
+No terminan...
+
+6 10
+XXXXXXXXXX
+BB...W...X
+BB...WW..X
+BBBBBWWWWX
+BBBBBBBBBX
+BBBBBBBBBX
+
+
+4 10
+XXXXXXXXXX
+B........X
+B..B.....X
+BBBBWWWWWW

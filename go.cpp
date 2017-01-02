@@ -13,6 +13,11 @@ enum BoardIntersection {EMPTY = 0, KOBAN = 1, BLACK = 2, WHITE = 3};
 int boardN, boardM;
 int totalArea;
 int koMonster; // 0 o 1, jugador que es el Absolute Ko Monster
+int messy; // 0 o 1, jugador que quiere de ser posible anular el juego por ciclo largo
+
+const ThermoGraph messyThermograph[2] = { {{vector<Number>(), {Number(500) , BELOW}, true}, {vector<Number>(), {Number(500) , ABOVE}, true}} , 
+                                          {{vector<Number>(), {Number(-500), BELOW}, true}, {vector<Number>(), {Number(-500), ABOVE}, true}}  
+                                        };
 
 typedef unsigned char Index;
 
@@ -34,24 +39,32 @@ struct Board
     }
 };
 
-ostream &operator<<(ostream &os, const Board &b)
+void printPrefix(const string &prefix, const Board &b, ostream &os = cout)
 {
+    os << prefix;
     os << "/";
     for (int j=0;j<boardM;j++)
         os << "-";
     os << "\\" << endl;
     for (int i=0;i<boardN;i++)
     {
+        os << prefix;
         os << "|";
         for (int j=0;j<boardM;j++)
             cout << ".KBW"[b.get(Index(i*boardM+j))];
         os << "|";
         os << endl;
     }
+    os << prefix;
     os << "\\";
     for (int j=0;j<boardM;j++)
         os << "-";
     os << "/" << endl;
+}
+
+ostream &operator<<(ostream &os, const Board &b)
+{
+    printPrefix("",b,os);
     return os;
 }
 
@@ -64,15 +77,30 @@ unordered_map<Board, ThermoGraph > transpositionTable;
 
 const Number MINUS_ONE(-1);
 
-void makePending(ThermoGraph &t)
+void makePending(ThermoGraph &t, int depth, int captureCount)
 {
+    assert(depth > 0);
     t.left.v.clear();
-    t.left.v.push_back(MINUS_ONE);
+    t.left.v.push_back(Number(-depth));
+    t.right.v.clear();
+    t.right.v.push_back(Number(captureCount));
 }
 
 bool pending(const ThermoGraph &t)
 {
     return !t.left.v.empty() && t.left.v.back().negative();
+}
+
+int getDepth(const ThermoGraph &t)
+{
+    assert(!t.left.v.empty());
+    return -int(t.left.v.back().numerator);
+}
+
+int getCaptureCount(const ThermoGraph &t)
+{
+    assert(!t.right.v.empty());
+    return int(t.right.v.back().numerator);
 }
 
 // KO NORMAL:
@@ -169,19 +197,30 @@ Board readBoard()
 
 //#define DEBUG_OPTIONS
 
-
-void thermograph(ThermoGraph &ret, Board board)
+// Devuelve la profundidad minima utilizada para el computo de este resultado.
+int thermograph(ThermoGraph &ret, Board board, const int depth, const int captureCount)
 {
     auto it = transpositionTable.find(board);
     if (it != transpositionTable.end())
     {
         if (pending(it->second))
-            assert(false); // CICLO!!!
+        {
+            int diff = captureCount - getCaptureCount(it->second);
+            if (diff == 0)
+                ret = messyThermograph[messy];
+            else
+                ret = messyThermograph[diff < 0];
+            return getDepth(it->second);
+        }
         else
+        {
             ret = it->second;
-        return;
+            return 1000000;
+        }
     }
-    makePending(transpositionTable[board]);
+    makePending(transpositionTable[board], depth, captureCount);
+    
+    int lowestUsed = depth;
     
     #ifdef DEBUG_OPTIONS
         Board origBoard = board; // Se modifica cuando se juega la opcion de tomar el koban.
@@ -294,6 +333,7 @@ void thermograph(ThermoGraph &ret, Board board)
                     }
                 }
                 int stonesCaptured = (iter == 2); // Contamos la koban-capture
+                #define capturedDiff (stonesCaptured * (1 - 2*player))
                 if (groupCaptures > 0)
                 {
                     // Ante capturas, copiamos y sabemos que la jugada es legal sin revisar si hubo suicidio.
@@ -333,9 +373,9 @@ void thermograph(ThermoGraph &ret, Board board)
                     if (player == 0) // BLACK
                     {
                         ThermoGraph otg;
-                        thermograph(otg, newBoard);
-                        otg.left.base.x  += Number(stonesCaptured * (1 - 2*player));
-                        otg.right.base.x += Number(stonesCaptured * (1 - 2*player));
+                        lowestUsed = min(lowestUsed, thermograph(otg, newBoard, depth+1, captureCount + capturedDiff));
+                        otg.left.base.x  += Number(capturedDiff);
+                        otg.right.base.x += Number(capturedDiff);
                         otg.right.startsUp ^= 1;
                         if (blackFirst)
                         {
@@ -352,9 +392,9 @@ void thermograph(ThermoGraph &ret, Board board)
                     else // WHITE
                     {
                         ThermoGraph otg;
-                        thermograph(otg, newBoard);
-                        otg.left.base.x  += Number(stonesCaptured * (1 - 2*player));
-                        otg.right.base.x += Number(stonesCaptured * (1 - 2*player));
+                        lowestUsed = min(lowestUsed, thermograph(otg, newBoard, depth+1, captureCount + capturedDiff));
+                        otg.left.base.x  += Number(capturedDiff);
+                        otg.right.base.x += Number(capturedDiff);
                         otg.left.startsUp ^= 1;
                         if (whiteFirst)
                         {
@@ -399,9 +439,9 @@ void thermograph(ThermoGraph &ret, Board board)
                     if (player == 0) // BLACK
                     {
                         ThermoGraph otg;
-                        thermograph(otg, board);
-                        otg.left.base.x  += Number(stonesCaptured * (1 - 2*player));
-                        otg.right.base.x += Number(stonesCaptured * (1 - 2*player));
+                        lowestUsed = min(lowestUsed, thermograph(otg, board, depth+1, captureCount + capturedDiff));
+                        otg.left.base.x  += Number(capturedDiff);
+                        otg.right.base.x += Number(capturedDiff);
                         otg.right.startsUp ^= 1;
                         if (blackFirst)
                         {
@@ -418,9 +458,9 @@ void thermograph(ThermoGraph &ret, Board board)
                     else // WHITE
                     {
                         ThermoGraph otg;
-                        thermograph(otg, board);
-                        otg.left.base.x  += Number(stonesCaptured * (1 - 2*player));
-                        otg.right.base.x += Number(stonesCaptured * (1 - 2*player));
+                        lowestUsed = min(lowestUsed, thermograph(otg, board, depth+1, captureCount + capturedDiff));
+                        otg.left.base.x  += Number(capturedDiff);
+                        otg.right.base.x += Number(capturedDiff);
                         otg.left.startsUp ^= 1;
                         if (whiteFirst)
                         {
@@ -457,15 +497,24 @@ void thermograph(ThermoGraph &ret, Board board)
         mergeOnlyLeft(ret, bestBlack);
     else
         merge(ret, bestBlack, bestWhite);
-    transpositionTable[board] = ret;
+        
+    if (lowestUsed < depth)
+        transpositionTable.erase(board);
+    else
+        transpositionTable[board] = ret;
     
     #ifdef DEBUG_OPTIONS
+        cout << string(3*depth,' ');
         cout << "BOARD:" << endl;
-        cout << origBoard;
+        printPrefix(string(3*depth,' '), origBoard);
+        cout << string(3*depth,' ');
         cout << "OPTIONS:" << endl;
-        for (Board b : options) cout << b;
+        for (Board b : options) printPrefix(string(3*depth,' '), b);
+        cout << string(3*depth,' ');
         cout << "RESULT: " << ret << endl;
     #endif
+    
+    return lowestUsed;
 }
 
 
@@ -477,21 +526,40 @@ int main()
     assert(MAX_AREA <= OUTER_WHITE);
     
     Board startingBoard = readBoard();
-    ThermoGraph t[2];
+    ThermoGraph t[2][2];
     for (koMonster = 0; koMonster < 2; koMonster++)
+    for (messy = 0; messy < 2; messy++)
     {
         transpositionTable.clear();
-        thermograph(t[koMonster], startingBoard);
+        thermograph(t[koMonster][messy], startingBoard, 1, 0);
     }
     
-    if (t[0] != t[1])
+    bool dependsOnKoMonster = (t[0][0] != t[1][0] || t[0][1] != t[1][1]);
+    bool dependsOnMessy     = (t[0][0] != t[0][1] || t[1][0] != t[1][1]);
+    
+    if (dependsOnKoMonster && dependsOnMessy)
     {
-        cout << "LA POSICION DEPENDE DEL KO-MONSTER:" << endl;
-        cout << "BLACK:" << t[0] << endl;
-        cout << "WHITE:" << t[1] << endl;
+        cout << "LA POSICION DEPENDE DEL KO-MONSTER Y DE UN CICLO LARGO:" << endl;
+        cout << "KoMonster | Messy:" << endl;
+        cout << "BLACK | BLACK :" << t[0][0] << endl;
+        cout << "WHITE | BLACK :" << t[1][0] << endl;
+        cout << "BLACK | WHITE :" << t[0][1] << endl;
+        cout << "WHITE | WHITE :" << t[1][1] << endl;
+    }
+    else if (dependsOnKoMonster)
+    {
+        cout << "LA POSICION DEPENDE DEL KO-MONSTER" << endl;
+        cout << "BLACK" << t[0][0] << endl;
+        cout << "WHITE" << t[1][0] << endl;
+    }
+    else if (dependsOnMessy)
+    {
+        cout << "LA POSICION DEPENDE DE UN CICLO. Si el Messy es:" << endl;
+        cout << "BLACK:" << t[0][0] << endl;
+        cout << "WHITE:" << t[0][1] << endl;
     }
     else
-        cout << t[0] << endl;
+        cout << t[0][0] << endl;
     
     
     return 0;
